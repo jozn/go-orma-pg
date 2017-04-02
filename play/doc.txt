@@ -1,1 +1,9 @@
 xo mysql://root:123456@localhost:3307/ms_test --single-file --template-path C:\Go\_gopath\src\ms\libs\go-orma --out "gen_sql.go" --suffix go --schema "" --package main
+
+
+xo_pg mysql://root:123456@localhost:3307/ms --single-file  --out "gen_sql.go" --suffix go --schema "" --package main
+xo_pg pgsql://postgres:123456@localhost/ms?sslmode=disable --single-file  --out "gen_pg.go" --suffix go --schema "" --package main
+
+pgsql://postgres:123456@localhost/xo?sslmode=disable
+
+xo_pg pgsql://postgres:123456@localhost/xo?sslmode=disable --template-path C:\Go\_gopath\src\github.com\jozn\go-orma-pg --single-file -o "model_xo_pg2.gen.go" --suffix go --schema "" --package models
