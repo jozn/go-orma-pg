@@ -29,4 +29,5 @@ _testmain.go
 /play/gen_sql.go
 /play/new/
 /play/*.log
+/play/log*
 #/play/.idea
