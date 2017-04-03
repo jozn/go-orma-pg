@@ -1,40 +1,83 @@
 /*
-SQLyog Ultimate v11.11 (64 bit)
-MySQL - 5.5.5-10.1.12-MariaDB : Database - ms
-*********************************************************************
-*/
+Navicat PGSQL Data Transfer
 
-/*!40101 SET NAMES utf8 */;
+Source Server         : pg1
+Source Server Version : 90602
+Source Host           : localhost:5432
+Source Database       : tag
+Source Schema         : public
 
-/*!40101 SET SQL_MODE=''*/;
+Target Server Type    : PGSQL
+Target Server Version : 90602
+File Encoding         : 65001
 
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-CREATE DATABASE /*!32312 IF NOT EXISTS*/`ms` /*!40100 DEFAULT CHARACTER SET utf8 */;
+Date: 2017-04-03 06:48:11
+*/
 
-USE `ms`;
 
-/*Table structure for table `tags` */
+-- ----------------------------
+-- Table structure for tags
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."tags";
+CREATE TABLE "public"."tags" (
+"Id" int4 NOT NULL,
+"Name" varchar(100) COLLATE "default" NOT NULL,
+"Count" int4 NOT NULL,
+"IsBlocked" int4 NOT NULL,
+"CreatedTime" int4 NOT NULL
+)
+WITH (OIDS=FALSE)
 
-DROP TABLE IF EXISTS `tags`;
+;
 
-CREATE TABLE `tags` (
-  `Id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `Name` varchar(100) NOT NULL,
-  `Count` int(11) NOT NULL,
-  `IsBlocked` tinyint(1) NOT NULL,
-  `CreatedTime` int(11) NOT NULL,
-  PRIMARY KEY (`Id`),
-  UNIQUE KEY `Name` (`Name`)
-) ENGINE=Aria AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 PAGE_CHECKSUM=1 DELAY_KEY_WRITE=1;
+-- ----------------------------
+-- Records of tags
+-- ----------------------------
+INSERT INTO "public"."tags" VALUES ('1', 'آتش‌سوزی', '697', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('2', 'انسان', '1279', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('3', 'شده', '1294', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('4', 'MicroTugs', '1320', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('5', 'تکنیک‌های', '730', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('6', 'شوند.', '698', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('7', 'این', '1306', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('8', 'خود', '708', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('9', 'بیشتر', '685', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('10', 'کنفرانس', '706', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('11', 'مهندسین', '715', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('12', 'ربات‌ها', '1346', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('13', 'آزمایشگاه', '1294', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('14', 'اشیایی', '688', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('15', 'راز', '754', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('16', 'دانشگاه', '1301', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('17', 'نجات', '706', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('18', 'دوباره', '704', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('19', 'هنگامی', '735', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('20', 'استنفورد', '668', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('21', 'هنگام', '727', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('22', 'سازندگان', '721', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('23', 'عمودی', '721', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('24', 'به', '722', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('25', 'ولی', '706', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('26', 'هزار', '659', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('27', 'انسان‌های', '735', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('28', 'کشیدن', '735', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('29', 'سطح', '687', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('30', 'قدرت', '725', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('31', 'کوچک', '1313', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('32', 'قوی‌ترین', '714', '0', '1471759996');
+INSERT INTO "public"."tags" VALUES ('33', 'کوچک‌ترین', '713', '0', '1471759997');
+INSERT INTO "public"."tags" VALUES ('34', 'ریزگردها،', '5', '0', '1489869079');
 
-/*Data for the table `tags` */
+-- ----------------------------
+-- Alter Sequences Owned By 
+-- ----------------------------
 
-insert  into `tags`(`Id`,`Name`,`Count`,`IsBlocked`,`CreatedTime`) values (1,'آتش‌سوزی',210,0,1471759996),(2,'انسان',356,0,1471759996),(3,'شده',380,0,1471759996),(4,'MicroTugs',390,0,1471759996),(5,'تکنیک‌های',217,0,1471759996),(6,'شوند.',191,0,1471759996),(7,'این',374,0,1471759996),(8,'خود',201,0,1471759996),(9,'بیشتر',185,0,1471759996),(10,'کنفرانس',193,0,1471759996),(11,'مهندسین',202,0,1471759996),(12,'ربات‌ها',387,0,1471759996),(13,'آزمایشگاه',356,0,1471759996),(14,'اشیایی',207,0,1471759996),(15,'راز',205,0,1471759996),(16,'دانشگاه',357,0,1471759996),(17,'نجات',187,0,1471759996),(18,'دوباره',207,0,1471759996),(19,'هنگامی',211,0,1471759996),(20,'استنفورد',181,0,1471759996),(21,'هنگام',205,0,1471759996),(22,'سازندگان',191,0,1471759996),(23,'عمودی',192,0,1471759996),(24,'به',187,0,1471759996),(25,'ولی',182,0,1471759996),(26,'هزار',158,0,1471759996),(27,'انسان‌های',215,0,1471759996),(28,'کشیدن',200,0,1471759996),(29,'سطح',187,0,1471759996),(30,'قدرت',207,0,1471759996),(31,'کوچک',388,0,1471759996),(32,'قوی‌ترین',205,0,1471759996),(33,'کوچک‌ترین',192,0,1471759997);
+-- ----------------------------
+-- Indexes structure for table tags
+-- ----------------------------
+CREATE INDEX "cnt" ON "public"."tags" USING btree ("Count");
 
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+-- ----------------------------
+-- Primary Key structure for table tags
+-- ----------------------------
+ALTER TABLE "public"."tags" ADD PRIMARY KEY ("Id");

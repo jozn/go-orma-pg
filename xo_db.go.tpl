@@ -11,9 +11,9 @@ type XODB interface {
 // XOLog provides the log func used by generated queries.
 var  _sqlLogFile *os.File
 var XOLog = func(strings ...interface{}) {
-	if config.IS_DEBUG {
+	if config.IS_DEBUG || true{
         if _sqlLogFile == nil{
-            _sqlLogFile,_ = os.OpenFile("./logs/sql_"+helper.IntToStr(helper.TimeNow())+".sql", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+            _sqlLogFile,_ = os.OpenFile("./logs_sql_"+helper.IntToStr(helper.TimeNow())+".sql", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
         }
         _sqlLogFile.WriteString(fmt.Sprintln(strings...))
         _sqlLogFile.Sync()
@@ -85,6 +85,11 @@ type whereClause struct  {
     args        []interface{}
 }
 
+type updateClause struct {
+    col string
+    val interface{}
+}
+
 func whereClusesToSql(wheres []whereClause, whereSep string ) (string, []interface{}) {
     var wheresArr []string
     for _,w := range wheres{
@@ -98,5 +103,42 @@ func whereClusesToSql(wheres []whereClause, whereSep string ) (string, []interfa
     }
     return wheresStr , args
 }
+
+type postgresDollar struct  {
+    i int //current counter
+}
+
+func (dollar *postgresDollar) nextDollar() string {
+	dollar.i += 1
+	return fmt.Sprintf(" $%d ",dollar.i)	
+}
+
+func (dollar *postgresDollar) nextNum() int {
+	dollar.i += 1
+	return dollar.i
+}
+
+func (dollar *postgresDollar) nextManys(size int) string {
+	if size < 1 {
+		return ""
+	}
+
+	if size == 1 {
+		return dollar.nextDollar()
+	}
+
+	start:= dollar.i +1
+	//end:= start + size
+
+	outArry:= []string{}
+	for n:=0; n < size;n++{
+		outArry = append(outArry, fmt.Sprintf("$%d",start) )
+		start++
+	}
+	dollar.i = start -1
+	
+	return  " "+strings.Join(outArry,",")+" "
+}
+
 
 

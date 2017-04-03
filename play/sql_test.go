@@ -1,19 +1,20 @@
-package main_test
+package main
 
 import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"io/ioutil"
 	"math/rand"
-	. "ms/libs/go-orma/play"
-	"ms/sun/helper"
+	//. "ms/libs/go-orma/play"
 	"testing"
+    _ "github.com/lib/pq"
 )
 
 //var DB *sqlx.DB
 func load() {
 	var err error
-	DB, err = sqlx.Connect("mysql", "root:123456@tcp(localhost:3307)/ms_test?charset=utf8mb4")
+	//DB, err = sqlx.Connect("mysql", "root:123456@tcp(localhost:3307)/ms_test?charset=utf8mb4")
+	DB, err = sqlx.Connect("postgres", "user=postgres dbname=tags sslmode=disable")
 	DB.MapperFunc(func(s string) string { return s })
 	if err != nil {
 		panic("DB")
@@ -46,7 +47,8 @@ func TestSelectSQLX(t *testing.T) {
 
 ///////////////////////// Selector ////////////////
 func TestSelect(t *testing.T) {
-	r, err := NewComment_Selector().Id_LT(100).GetRows(DB)
+    load()
+	r, err := NewTag_Selector().Id_LT(100).GetRows(DB)
 	if len(r) == 0 || err != nil {
 		t.Error(" Select faild", len(r), err)
 	}
@@ -205,7 +207,7 @@ func TestUpdaterInsInt(t *testing.T) {
 func TestUpdaterInsString(t *testing.T) {
 	ins := []string{"آتش‌سوزی", "انسان", "شده", "MicroTugs"}
 	rnd := rand.Intn(100000)
-	r, err := NewTag_Updater().Name_In(ins).Count(rnd).CreatedTime_GE(125).Update(DB)
+	r, err := NewTag_Updater().Count(rnd).Name_In(ins).CreatedTime_GE(125).Update(DB)
 	z, e := TagById(DB, 1)
 	if err != nil || r < 0 || e != nil || z.Count != rnd {
 		t.Error("faild", err)
@@ -262,7 +264,7 @@ func TestDeleteAll_NO(t *testing.T) {
 func BenchmarkSelectSingleRow(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		UserById(DB, rand.Intn(80))
+		TagById(DB, rand.Intn(80))
 	}
 }
 
@@ -290,47 +292,33 @@ func BenchmarkSelectSingleRow_Tag(b *testing.B) {
 func BenchmarkSelectSingleHand_Tag(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		DB.QueryRow("select * frrom tags where Id = ? ", rand.Intn(40))
+		DB.QueryRow("select * frrom tags where Id = $1 ", rand.Intn(40))
 	}
 }
 
 func BenchmarkSelectSingSqlx_Tag(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		DB.QueryRow("select * frrom tags where Id = ? ", rand.Intn(40))
+		DB.QueryRow("select * frrom tags where Id = $1 ", rand.Intn(40))
 	}
 }
 
 func BenchmarkSelectSingleRow_Post(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		PostById(DB, rand.Intn(40))
-	}
-}
-
-func BenchmarkSelectSingleHand_Post(b *testing.B) {
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		DB.QueryRow("select * frrom post where Id = ? ", rand.Intn(40))
-	}
-}
-
-func BenchmarkSelectSingSqlx_Post(b *testing.B) {
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		DB.QueryRow("select * frrom post where Id = ? ", rand.Intn(40))
+		TagById(DB, rand.Intn(40))
 	}
 }
 
 func getUser() {
-	DB.QueryRow("select * frrom user where Id = ? ", rand.Intn(80))
+	DB.QueryRow("select * frrom tags where Id = $1 ", rand.Intn(80))
 }
 
 func getUserSqlx() {
-	DB.Get(&User{}, "select * frrom user where Id = ? ", rand.Intn(80))
+	DB.Get(&Tag{}, "select * frrom tags where Id = $1 ", rand.Intn(80))
 }
 
-func insrtComment(num int) {
+/*func insrtComment(num int) {
 	for i := 1; i < num; i++ {
 		c := Comment{}
 		c.Id = i
@@ -339,7 +327,7 @@ func insrtComment(num int) {
 		c.PostId = 10 * int64(i)
 		c.Replace(DB)
 	}
-}
+}*/
 
 type Tag2 struct {
 	TagId       int

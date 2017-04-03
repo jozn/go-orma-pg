@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+    _ "github.com/lib/pq"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -12,8 +13,9 @@ const DEBUG = false
 
 func main() {
 	var err error
-	DB, err = sqlx.Connect("mysql", "root:123456@tcp(localhost:3307)/ms_test?charset=utf8mb4")
+	//DB, err = sqlx.Connect("mysql", "root:123456@tcp(localhost:3307)/ms_test?charset=utf8mb4")
 	//DB, err = sqlx.Connect("mysql", "root:123456@tcp(localhost:3307)/ms5?charset=utf8mb4")
+	DB, err = sqlx.Connect("postgres", "user=postgres dbname=tags sslmode=disable")
 	DB.MapperFunc(func(s string) string { return s })
 	if err != nil {
 		panic("DB")

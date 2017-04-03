@@ -7,3 +7,5 @@ xo_pg pgsql://postgres:123456@localhost/ms?sslmode=disable --single-file  --out 
 pgsql://postgres:123456@localhost/xo?sslmode=disable
 
 xo_pg pgsql://postgres:123456@localhost/xo?sslmode=disable --template-path C:\Go\_gopath\src\github.com\jozn\go-orma-pg --single-file -o "model_xo_pg2.gen.go" --suffix go --schema "" --package models
+
+xo_pg pgsql://postgres:123456@localhost/tag?sslmode=disable --template-path C:\Go\_gopath\src\github.com\jozn\go-orma-pg --single-file -o "model.gen.go" --suffix go --schema "" --package main

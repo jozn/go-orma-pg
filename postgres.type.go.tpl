@@ -8,7 +8,7 @@
 {{- end }}
 
 // Manualy copy this to project
-type __{{ .Name }} struct {
+type {{ .Name }} struct {
 {{- range .Fields }}
 	{{ .Col.ColumnName }} {{ retype .Type }} `json:"{{ .Col.ColumnName }}"` // {{ .Col.ColumnName }} -
 {{- end }}
@@ -40,34 +40,145 @@ func ({{ $short }} *{{ .Name }}) Insert(db XODB) error {
 		return errors.New("insert failed: already exists")
 	}
 
-	// sql query
+{{ if .Table.ManualPk }}
+	// sql insert query, primary key must be provided
+	const sqlstr = `INSERT INTO {{ $table }} (` +
+		`{{ colnames .Fields }}` +
+		`) VALUES (` +
+		`{{ colvals .Fields }}` +
+		`)`
+
+	// run query
+	XOLog(sqlstr, {{ fieldnames .Fields $short }})
+	err = db.QueryRow(sqlstr, {{ fieldnames .Fields $short }}).Scan(&{{ $short }}.{{ .PrimaryKey.Name }})
+	if err != nil {
+		return err
+	}
+{{ else }}
+	// sql insert query, primary key provided by sequence
 	const sqlstr = `INSERT INTO {{ $table }} (` +
 		`{{ colnames .Fields .PrimaryKey.Name }}` +
 		`) VALUES (` +
 		`{{ colvals .Fields .PrimaryKey.Name }}` +
-		`)`
+		`) RETURNING {{ colname .PrimaryKey.Col }}`
 
 	// run query
 	XOLog(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }})
-	res, err := db.Exec(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }})
+	err = db.QueryRow(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}).Scan(&{{ $short }}.{{ .PrimaryKey.Name }})
 	if err != nil {
 		return err
 	}
+{{ end }}
 
-	// retrieve id
-	id, err := res.LastInsertId()
-	if err != nil {
-		return err
-	}
-
-	// set primary key and existence
-	{{ $short }}.{{ .PrimaryKey.Name }} = {{ .PrimaryKey.Type }}(id)
+	// set existence
 	{{ $short }}._exists = true
 
 	return nil
 }
 
-// Insert inserts the {{ .Name }} to the database.
+// Update updates the {{ .Name }} in the database.
+func ({{ $short }} *{{ .Name }}) Update(db XODB) error {
+	var err error
+
+	// if doesn't exist, bail
+	if !{{ $short }}._exists {
+		return errors.New("update failed: does not exist")
+	}
+
+	// if deleted, bail
+	if {{ $short }}._deleted {
+		return errors.New("update failed: marked for deletion")
+	}
+
+	// sql query
+	const sqlstr = `UPDATE {{ $table }} SET (` +
+		`{{ colnames .Fields .PrimaryKey.Name }}` +
+		`) = ( ` +
+		`{{ colvals .Fields .PrimaryKey.Name }}` +
+		`) WHERE {{ colname .PrimaryKey.Col }} = ${{ colcount .Fields .PrimaryKey.Name }}`
+
+	// run query
+	XOLog(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}, {{ $short }}.{{ .PrimaryKey.Name }})
+	_, err = db.Exec(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}, {{ $short }}.{{ .PrimaryKey.Name }})
+	return err
+}
+
+// Save saves the {{ .Name }} to the database.
+func ({{ $short }} *{{ .Name }}) Save(db XODB) error {
+	if {{ $short }}.Exists() {
+		return {{ $short }}.Update(db)
+	}
+
+	return {{ $short }}.Insert(db)
+}
+
+// Upsert performs an upsert for {{ .Name }}.
+//
+// NOTE: PostgreSQL 9.5+ only
+func ({{ $short }} *{{ .Name }}) Upsert(db XODB) error {
+	var err error
+
+	// if already exist, bail
+	if {{ $short }}._exists {
+		return errors.New("insert failed: already exists")
+	}
+
+	// sql query
+	const sqlstr = `INSERT INTO {{ $table }} (` +
+		`{{ colnames .Fields }}` +
+		`) VALUES (` +
+		`{{ colvals .Fields }}` +
+		`) ON CONFLICT ({{ colname .PrimaryKey.Col }}) DO UPDATE SET (` +
+		`{{ colnames .Fields }}` +
+		`) = (` +
+		`{{ colprefixnames .Fields "EXCLUDED" }}` +
+		`)`
+
+	// run query
+	XOLog(sqlstr, {{ fieldnames .Fields $short }})
+	_, err = db.Exec(sqlstr, {{ fieldnames .Fields $short }})
+	if err != nil {
+		return err
+	}
+
+	// set existence
+	{{ $short }}._exists = true
+
+	return nil
+}
+
+// Delete deletes the {{ .Name }} from the database.
+func ({{ $short }} *{{ .Name }}) Delete(db XODB) error {
+	var err error
+
+	// if doesn't exist, bail
+	if !{{ $short }}._exists {
+		return nil
+	}
+
+	// if deleted, bail
+	if {{ $short }}._deleted {
+		return nil
+	}
+
+	// sql query
+	const sqlstr = `DELETE FROM {{ $table }} WHERE {{ colname .PrimaryKey.Col }} = $1`
+
+	// run query
+	XOLog(sqlstr, {{ $short }}.{{ .PrimaryKey.Name }})
+	_, err = db.Exec(sqlstr, {{ $short }}.{{ .PrimaryKey.Name }})
+	if err != nil {
+		return err
+	}
+
+	// set deleted
+	{{ $short }}._deleted = true
+
+	return nil
+}
+
+
+// DEP MUST USE .Upsert()
 func ({{ $short }} *{{ .Name }}) Replace(db XODB) error {
 	var err error
 
@@ -98,69 +209,6 @@ func ({{ $short }} *{{ .Name }}) Replace(db XODB) error {
 	return nil
 }
 
-// Update updates the {{ .Name }} in the database.
-func ({{ $short }} *{{ .Name }}) Update(db XODB) error {
-	var err error
-
-	// if doesn't exist, bail
-	if !{{ $short }}._exists {
-		return errors.New("update failed: does not exist")
-	}
-
-	// if deleted, bail
-	if {{ $short }}._deleted {
-		return errors.New("update failed: marked for deletion")
-	}
-
-	// sql query
-	const sqlstr = `UPDATE {{ $table }} SET ` +
-		`{{ colnamesquery .Fields ", " .PrimaryKey.Name }}` +
-		` WHERE {{ colname .PrimaryKey.Col }} = ?`
-
-	// run query
-	XOLog(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}, {{ $short }}.{{ .PrimaryKey.Name }})
-	_, err = db.Exec(sqlstr, {{ fieldnames .Fields $short .PrimaryKey.Name }}, {{ $short }}.{{ .PrimaryKey.Name }})
-	return err
-}
-
-// Save saves the {{ .Name }} to the database.
-func ({{ $short }} *{{ .Name }}) Save(db XODB) error {
-	if {{ $short }}.Exists() {
-		return {{ $short }}.Update(db)
-	}
-
-	return {{ $short }}.Replace(db)
-}
-
-// Delete deletes the {{ .Name }} from the database.
-func ({{ $short }} *{{ .Name }}) Delete(db XODB) error {
-	var err error
-
-	// if doesn't exist, bail
-	if !{{ $short }}._exists {
-		return nil
-	}
-
-	// if deleted, bail
-	if {{ $short }}._deleted {
-		return nil
-	}
-
-	// sql query
-	const sqlstr = `DELETE FROM {{ $table }} WHERE {{ colname .PrimaryKey.Col }} = ?`
-
-	// run query
-	XOLog(sqlstr, {{ $short }}.{{ .PrimaryKey.Name }})
-	_, err = db.Exec(sqlstr, {{ $short }}.{{ .PrimaryKey.Name }})
-	if err != nil {
-		return err
-	}
-
-	// set deleted
-	{{ $short }}._deleted = true
-
-	return nil
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// Querify gen - ME /////////////////////////////////////////
@@ -174,17 +222,21 @@ func ({{ $short }} *{{ .Name }}) Delete(db XODB) error {
 // orma types
 type {{ $deleterType }} struct {
 	wheres   []whereClause
+	dollar postgresDollar
     whereSep string
 }
 
 type {{ $updaterType }} struct {
 	wheres   []whereClause
-	updates   map[string]interface{}
+	dollar postgresDollar
+	// updates   map[string]interface{}
+	updates []updateClause
     whereSep string
 }
 
 type {{ $selectorType }} struct {
     wheres   []whereClause
+    dollar postgresDollar
     selectCol string
     whereSep  string
     orderBy string//" order by id desc //for ints
@@ -199,7 +251,7 @@ func New{{ .Name }}_Deleter()  *{{ $deleterType }} {
 
 func New{{ .Name }}_Updater()  *{{ $updaterType }} {
 	    u := {{ $updaterType }} {whereSep: " AND "}
-	    u.updates =  make(map[string]interface{},10)
+	    //u.updates =  make(map[string]interface{},10)
 	    return &u
 }
 
@@ -225,6 +277,7 @@ func (u *{{$operationType}}) Or () *{{$operationType}} {
 		{{- range $Fields }}
 			
 			{{- $colName := .Col.ColumnName }}
+			{{- $colNameEsc := (colname .Col ) }}
 			{{- $colType := .Type }}
 	
 				{{- if (or (eq $colType "int64") (eq $colType "int") ) }}
@@ -236,7 +289,7 @@ func (u *{{$operationType}}) {{ $colName }}_In (ins []int) *{{$operationType}} {
         insWhere = append(insWhere,i)
     }
     w.args = insWhere
-    w.condition = " {{ $colName }} IN("+helper.DbQuestionForSqlIn(len(ins))+") "
+    w.condition = ` {{ $colNameEsc }} IN(`+u.dollar.nextManys(len(ins))+") "
     u.wheres = append(u.wheres, w)
 
     return u
@@ -249,7 +302,7 @@ func (u *{{$operationType}}) {{ $colName }}_NotIn (ins []int) *{{$operationType}
         insWhere = append(insWhere,i)
     }
     w.args = insWhere
-    w.condition = " {{ $colName }} NOT IN("+helper.DbQuestionForSqlIn(len(ins))+") "
+    w.condition = ` {{ $colNameEsc }} NOT IN(`+u.dollar.nextManys(len(ins))+`) `
     u.wheres = append(u.wheres, w)
 
     return u
@@ -263,7 +316,7 @@ func (d *{{$operationType}}) {{ $colName }}{{ .Suffix }} (val int) *{{$operation
     var insWhere []interface{}
     insWhere = append(insWhere,val)
     w.args = insWhere
-    w.condition = " {{ $colName }} {{.Condition}} ? "
+    w.condition = ` {{ $colNameEsc }} {{.Condition}} ` + d.dollar.nextDollar()
     d.wheres = append(d.wheres, w)
     	
     return d
@@ -285,6 +338,7 @@ func (d *{{$operationType}}) {{ $colName }}{{ .Suffix }} (val int) *{{$operation
 		{{- range $Fields }}
 			
 			{{- $colName := .Col.ColumnName }}
+			{{- $colNameEsc := (colname .Col ) }}
 			{{- $colType := .Type }}
 	
 				{{- if (eq $colType "string") }}
@@ -296,7 +350,7 @@ func (u *{{$operationType}}) {{ $colName }}_In (ins []string) *{{$operationType}
         insWhere = append(insWhere,i)
     }
     w.args = insWhere
-    w.condition = " {{ $colName }} IN("+helper.DbQuestionForSqlIn(len(ins))+") "
+    w.condition = ` {{ $colNameEsc }} IN(`+u.dollar.nextManys(len(ins))+") "
     u.wheres = append(u.wheres, w)
 
     return u
@@ -309,7 +363,7 @@ func (u *{{$operationType}}) {{ $colName }}_NotIn (ins []string) *{{$operationTy
         insWhere = append(insWhere,i)
     }
     w.args = insWhere
-    w.condition = " {{ $colName }} NOT IN("+helper.DbQuestionForSqlIn(len(ins))+") "
+    w.condition = ` {{ $colNameEsc }} NOT IN(`+u.dollar.nextManys(len(ins))+") "
     u.wheres = append(u.wheres, w)
 
     return u
@@ -321,7 +375,7 @@ func (u *{{$operationType}}) {{ $colName }}_Like (val string) *{{$operationType}
     var insWhere []interface{}
     insWhere = append(insWhere,val)
     w.args = insWhere
-    w.condition = " {{ $colName }} LIKE ? "
+    w.condition = ` {{ $colNameEsc }} LIKE ` + u.dollar.nextDollar()
     u.wheres = append(u.wheres, w)
 
     return u
@@ -335,7 +389,7 @@ func (d *{{$operationType}}) {{ $colName }}{{ .Suffix }} (val string) *{{$operat
     var insWhere []interface{}
     insWhere = append(insWhere,val)
     w.args = insWhere
-    w.condition = " {{ $colName }} {{.Condition}} ? "
+    w.condition = ` {{ $colNameEsc }} {{.Condition}} ` + d.dollar.nextDollar()
     d.wheres = append(d.wheres, w)
     	
     return d
@@ -357,33 +411,38 @@ func (d *{{$operationType}}) {{ $colName }}{{ .Suffix }} (val string) *{{$operat
 {{- range $Fields }}
 			
 	{{- $colName := .Col.ColumnName }}
+	{{- $colNameEsc := (colname .Col ) }}
 	{{- $colType := .Type }}
 
 	//ints
 	{{- if (or (eq $colType "int64") (eq $colType "int") ) }}
 
 func (u *{{$updaterType}}){{ $colName }} (newVal int) *{{$updaterType}} {
-    u.updates[" {{$colName}} = ? "] = newVal
+    u.updates = append(u.updates, updateClause{col:` {{$colNameEsc}} = `+ u.dollar.nextDollar(),val:newVal } )
+    //u.updates[` {{$colNameEsc}} = `+ u.dollar.nextDollar()] = newVal
     return u
 }
 
 func (u *{{$updaterType}}){{ $colName }}_Increment (count int) *{{$updaterType}} {
 	if count > 0 {
-		u.updates[" {{$colName}} = {{$colName}}+? "] = count
+		u.updates = append(u.updates, updateClause{col:` {{$colNameEsc}} = {{$colNameEsc}}+ `+ u.dollar.nextDollar(),val:count } )
+		//u.updates[` {{$colNameEsc}} = {{$colNameEsc}}+`+ u.dollar.nextDollar()] = count
 	}
 
 	if count < 0 {
-		u.updates[" {{$colName}} = {{$colName}}-? "] = -(count) //make it positive
+		u.updates = append(u.updates, updateClause{col:` {{$colNameEsc}} = {{$colNameEsc}}- `+ u.dollar.nextDollar(),val:count } )
+		//u.updates[` {{$colNameEsc}} = {{$colNameEsc}}-`+ u.dollar.nextDollar()] = -(count) //make it positive
 	}
     
     return u
 }				
-	{{- end }}
+{{- end }}
 
 	//string
 	{{- if (eq $colType "string") }}
 func (u *{{$updaterType}}){{ $colName }} (newVal string) *{{$updaterType}} {
-    u.updates[" {{$colName}} = ? "] = newVal
+	u.updates = append(u.updates, updateClause{col:` {{$colNameEsc}} = `+ u.dollar.nextDollar(),val:newVal } )
+    //u.updates[" {{$colName}} = "+ u.dollar.nextDollar()] = newVal
     return u
 }	
 	{{- end }}
@@ -399,20 +458,21 @@ func (u *{{$updaterType}}){{ $colName }} (newVal string) *{{$updaterType}} {
 {{- range $Fields }}
 			
 	{{- $colName := .Col.ColumnName }}
+	{{- $colNameEsc := (colname .Col ) }}
 	{{- $colType := .Type }}
 
 func (u *{{$selectorType}}) OrderBy_{{ $colName }}_Desc () *{{$selectorType}} {
-    u.orderBy = " ORDER BY {{$colName}} DESC "
+    u.orderBy = ` ORDER BY {{$colNameEsc}} DESC `
     return u
 }
 
 func (u *{{$selectorType}}) OrderBy_{{ $colName }}_Asc () *{{$selectorType}} {
-    u.orderBy = " ORDER BY {{$colName}} ASC " 
+    u.orderBy = ` ORDER BY {{$colNameEsc}} ASC ` 
     return u
 }	
 
 func (u *{{$selectorType}}) Select_{{ $colName }} () *{{$selectorType}} {
-    u.selectCol = "{{$colName}}"  
+    u.selectCol = `{{$colNameEsc}}`  
     return u
 }			
 {{- end }}
@@ -432,7 +492,7 @@ func (u *{{$selectorType}}) Offset(num int) *{{$selectorType}} {
 func (u *{{$selectorType}})_stoSql ()  (string,[]interface{}) {
 	sqlWherrs, whereArgs := whereClusesToSql(u.wheres,u.whereSep)
 
-	sqlstr := "SELECT " +u.selectCol +" FROM {{ $table }}" 
+	sqlstr := `SELECT ` +u.selectCol +` FROM {{ $table }}` 
 
 	if len( strings.Trim(sqlWherrs," ") ) > 0 {//2 for safty
 		sqlstr += " WHERE "+ sqlWherrs
@@ -566,10 +626,14 @@ func (u *{{$updaterType}})Update (db XODB) (int,error) {
 
     var updateArgs []interface{}
     var sqlUpdateArr  []string
-    for up, newVal := range u.updates {
+    for _, up := range u.updates {
+        sqlUpdateArr = append(sqlUpdateArr, up.col)
+        updateArgs = append(updateArgs, up.val)
+    }
+    /*for up, newVal := range u.updates {
         sqlUpdateArr = append(sqlUpdateArr, up)
         updateArgs = append(updateArgs, newVal)
-    }
+    }*/
     sqlUpdate:= strings.Join(sqlUpdateArr, ",")
 
     sqlWherrs, whereArgs := whereClusesToSql(u.wheres,u.whereSep)
@@ -611,7 +675,7 @@ func (d *{{$deleterType}})Delete (db XODB) (int,error) {
         args = append(args,w.args...)
     }
 
-    sqlstr := "DELETE FROM {{ $table}} WHERE " + wheresStr
+    sqlstr := `DELETE FROM {{ $table}} WHERE ` + wheresStr
 
     // run query
     XOLog(sqlstr, args)
@@ -633,13 +697,13 @@ func (d *{{$deleterType}})Delete (db XODB) (int,error) {
 func MassInsert_{{ .Name }}(rows []{{ .Name }} ,db XODB) error {
 	var err error
 	ln := len(rows)
-	s:= "({{ ms_question_mark .Fields .PrimaryKey.Name }})," //`(?, ?, ?, ?),`
+	s:= `({{ ms_question_mark .Fields .PrimaryKey.Name }}),` //`(?, ?, ?, ?),`
 	insVals_:= strings.Repeat(s, ln)
 	insVals := insVals_[0:len(insVals_)-1]
 	// sql query
-	sqlstr := "INSERT INTO {{ $table }} (" +
-		"{{ colnames .Fields .PrimaryKey.Name }}" +
-		") VALUES " + insVals
+	sqlstr := `INSERT INTO {{ $table }} (` +
+		`{{ colnames .Fields .PrimaryKey.Name }}` +
+		`) VALUES ` + insVals
 
 	// run query
 	vals := make([]interface{},0, ln * 5)//5 fields
@@ -662,13 +726,13 @@ func MassInsert_{{ .Name }}(rows []{{ .Name }} ,db XODB) error {
 func MassReplace_{{ .Name }}(rows []{{ .Name }} ,db XODB) error {
 	var err error
 	ln := len(rows)
-	s:= "({{ ms_question_mark .Fields .PrimaryKey.Name }})," //`(?, ?, ?, ?),`
+	s:= `({{ ms_question_mark .Fields .PrimaryKey.Name }}),` //`(?, ?, ?, ?),`
 	insVals_:= strings.Repeat(s, ln)
 	insVals := insVals_[0:len(insVals_)-1]
 	// sql query
-	sqlstr := "REPLACE INTO {{ $table }} (" +
-		"{{ colnames .Fields .PrimaryKey.Name }}" +
-		") VALUES " + insVals
+	sqlstr := `REPLACE INTO {{ $table }} (` +
+		`{{ colnames .Fields .PrimaryKey.Name }}` +
+		`) VALUES ` + insVals
 
 	// run query
 	vals := make([]interface{},0, ln * 5)//5 fields

@@ -24,7 +24,9 @@ _testmain.go
 *.prof
 
 .idea
+*.iml
 
 /play/gen_sql.go
 /play/new/
+/play/*.log
 #/play/.idea
